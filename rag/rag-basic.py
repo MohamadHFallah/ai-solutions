@@ -1,5 +1,6 @@
 
 import os
+import csv
 from dotenv import load_dotenv
 import chromadb
 from chromadb.utils import embedding_functions
@@ -13,11 +14,22 @@ if not api_key:
 EMBEDDDING_MODEL='text-embedding-3-small'
 DIM=1536
 
-
 collection_name="test_rag"
 client = chromadb.HttpClient( host="localhost", port=8200) # Connect to Docker
 print(client.heartbeat())
 
+documents = []
+doc_metadatas = []
+
+def read_file():
+    file_name='faq_qa_pairs.csv'
+    
+    with open(file_name,'r',encoding='utf-8') as file_object:
+        csv_reader=  csv.DictReader(file_object)
+        for row in csv_reader:
+            documents.append(row['question'] + row['answer'])
+            doc_metadatas.append({'category':row['category']}) 
+        
 
 def init_chroma_open_ai():
     print(f' init {EMBEDDDING_MODEL} {api_key}')
@@ -43,41 +55,18 @@ def init_chroma_open_ai():
     print(f"✓ Created collection: {collection_name}")
 
 
-# Dummy data
-documents = [
-    "The capital of France is Paris. It is known for the Eiffel Tower and French cuisine.",
-    "Python is a programming language created by Guido van Rossum in 1991. It's great for beginners.",
-    "The Earth orbits around the Sun. One complete orbit takes 365.25 days, which is why we have leap years.",
-    "Coffee contains caffeine, which can help you stay awake and focused. It's one of the most popular drinks worldwide.",
-    "The Great Wall of China is over 13,000 miles long and was built over several dynasties.",
-    "Machine learning is a subset of AI that allows systems to learn from data without explicit programming.",
-    "The human heart beats about 100,000 times per day, pumping blood throughout the body.",
-    "Shakespeare wrote famous plays like Hamlet, Romeo and Juliet, and Macbeth in the late 16th century."
-]
-
-# IDs for each document (must be unique)
-doc_ids = [f"doc_{i}" for i in range(len(documents))]
-
-# Optional metadata for each document
-doc_metadatas = [
-    {"title": "France Facts", "topic": "geography", "year": 2023},
-    {"title": "Python History", "topic": "programming", "year": 2022},
-    {"title": "Earth Science", "topic": "astronomy", "year": 2023},
-    {"title": "Coffee Facts", "topic": "food", "year": 2021},
-    {"title": "Chinese Landmarks", "topic": "history", "year": 2022},
-    {"title": "Machine Learning Basics", "topic": "AI", "year": 2023},
-    {"title": "Human Body", "topic": "biology", "year": 2022},
-    {"title": "Shakespeare Works", "topic": "literature", "year": 2021}
-]
-
-
 def add_data():
     collection = client.get_collection(collection_name)
     print('adding data to chroma via openai')
+    
+    doc_ids = [f"doc_{i}" for i in range(len(documents))]
+    
+    # print(f"{len(doc_ids)} documents are ready")
+    
     collection.add(
         documents=documents,
         ids=doc_ids,
-        metadatas=doc_metadatas
+        metadatas=doc_metadatas 
     )
     
     print(f"✓ Added {len(documents)} documents to Chroma DB")
@@ -94,7 +83,7 @@ def ask_question():
 
     # You should connect to openai  
     result = collection.query(
-        query_texts=["what is a capital of France"],
+        query_texts=["شرکت‌های غیردانش‌بنیان "],
         n_results=2,
         include=["documents", "metadatas", "distances"]  # What to return
         )
@@ -106,5 +95,6 @@ def ask_question():
 
 
 init_chroma_open_ai()
+read_file()
 add_data()
 ask_question()
